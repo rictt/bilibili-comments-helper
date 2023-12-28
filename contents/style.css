@@ -1,0 +1,10 @@
+.bili-button {
+  display: inline-block;
+  border: "1px solid #FF6699";
+  padding: "12px 10px";
+  border-radius: "6px";
+  background-color: "#FF6699";
+  color: "#fff"; 
+  margin-bottom: "4px";
+  cursor: "pointer";
+}

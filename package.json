@@ -1,8 +1,8 @@
 {
   "name": "bilibil-comments-helper",
-  "displayName": "Bilibil comments helper",
+  "displayName": "B站评论助手",
   "version": "0.0.1",
-  "description": "Bilibili Comments Helper",
+  "description": "Bilibili评论助手，帮你下载评论，分析提取评论关键字，分析热点趋势～",
   "author": "joey",
   "scripts": {
     "dev": "plasmo dev",
@@ -25,7 +25,19 @@
   },
   "manifest": {
     "host_permissions": [
-      "https://*/*"
+      "https://www.bilibili.com/*",
+      "https://bilibili.com/*"
+    ],
+    "permissions": ["scripting"],
+    "web_accessible_resources": [
+      {
+        "resources": [
+          "~injected.js"
+        ],
+        "matches": [
+          "https://www.bilibili.com/*"
+        ]
+      }
     ]
   }
 }
