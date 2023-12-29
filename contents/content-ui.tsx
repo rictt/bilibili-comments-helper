@@ -81,12 +81,14 @@ function uniArr(list, uniKey) {
   return result
 }
 
-function downloadComments(title = 'file.html', maxCount = 100000) {
+function downloadComments(title = 'file.html', maxCount = 100000, withChildren = true) {
   let data = []
   const entries = commentInfoMap.entries()
   for (const [key, reply] of entries) {
-    const children = commentsListMap.get(key)
-    reply.children = uniArr(children || [], 'rpid')
+    if (withChildren) {
+      const children = commentsListMap.get(key)
+      reply.children = uniArr(children || [], 'rpid')
+    }
     data.push(reply)
   }
   data = data.slice(0, maxCount)
@@ -139,7 +141,7 @@ function downloadTopComments(topNum = 100) {
     const size = commentInfoMap.size
     if (extarct_config.mainReplyCount !== -1 && size >= extarct_config.mainReplyCount || noMoreComment()) {
       extarct_config.setLoading(false)
-      downloadComments(getDownloadFileName(), topNum)
+      downloadComments(getDownloadFileName(), topNum, false)
       extarct_config.onMainChange = null
       extarct_config.mainReplyCount = -1
     } else {
@@ -177,7 +179,7 @@ function downloadCommentsWithNested(topNum = 10) {
     extarct_config.onNestedChange = null
     console.log('downloadCommentsWithNested结束')
     extarct_config.setLoading(false)
-    downloadComments(getDownloadFileName(), extarct_config.mainSubReplyCount)
+    downloadComments(getDownloadFileName(), extarct_config.mainSubReplyCount, true)
     extarct_config.mainSubReplyCount = -1
   }
 
@@ -250,7 +252,7 @@ export function DownloadTop() {
 
 export function DownloadTopWithNested() {
   const onClick = () => {
-    downloadCommentsWithNested(100)
+    downloadCommentsWithNested(10)
   }
   return <Button onClick={onClick}>热门前10（含回复）</Button>
 }

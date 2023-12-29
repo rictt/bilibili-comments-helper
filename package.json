@@ -28,7 +28,6 @@
       "https://www.bilibili.com/*",
       "https://bilibili.com/*"
     ],
-    "permissions": ["scripting"],
     "web_accessible_resources": [
       {
         "resources": [
