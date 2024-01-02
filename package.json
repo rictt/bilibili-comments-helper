@@ -24,10 +24,6 @@
     "typescript": "5.2.2"
   },
   "manifest": {
-    "host_permissions": [
-      "https://www.bilibili.com/*",
-      "https://bilibili.com/*"
-    ],
     "web_accessible_resources": [
       {
         "resources": [
