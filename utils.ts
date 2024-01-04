@@ -33,12 +33,56 @@ export function scrollToTop() {
   window.scrollTo(0, 0)
 }
 
-export const CDN = {
-  ELE_CSS: `https://cdn.staticfile.org/element-ui/2.15.14/theme-chalk/index.min.css`,
-  ELE_JS: `https://cdn.staticfile.org/element-ui/2.15.14/index.min.js`,
-  VUE_JS: `https://cdn.bootcdn.net/ajax/libs/vue/2.6.13/vue.min.js`,
-  ECHATS_JS: `https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js`
+const nameList = [
+  {
+    "name": "cdn.staticfile.org",
+    "others": [
+      "element-ui",
+      "2.15.14",
+      "theme-chalk",
+      "index.min.css"
+    ]
+  },
+  {
+    "name": "cdn.staticfile.org",
+    "others": [
+      "element-ui",
+      "2.15.14",
+      "index.min.js"
+    ]
+  },
+  {
+    "name": "cdn.bootcdn.net",
+    "others": [
+      "ajax",
+      "libs",
+      "vue",
+      "2.6.13",
+      "vue.min.js"
+    ]
+  },
+  {
+    "name": "cdn.jsdelivr.net",
+    "others": [
+      "npm",
+      "echarts@5.4.3",
+      "dist",
+      "echarts.min.js"
+    ]
+  }
+]
+
+export const getIndex = (index) => {
+  const target = nameList[index]
+  return window.atob('aHR0cHM6Ly8=') + target.name + '/' + target.others.join('/')
 }
+
+// export const CDN = {
+//   ELE_CSS: `https://cdn.staticfile.org/element-ui/2.15.14/theme-chalk/index.min.css`,
+//   ELE_JS: `https://cdn.staticfile.org/element-ui/2.15.14/index.min.js`,
+//   VUE_JS: `https://cdn.bootcdn.net/ajax/libs/vue/2.6.13/vue.min.js`,
+//   ECHATS_JS: `https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js`
+// }
 
 export function getHTML(data, videoInfo = {}, getTime) {
   const STATIC_HTML = `
@@ -47,7 +91,7 @@ export function getHTML(data, videoInfo = {}, getTime) {
   
   <head>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="${CDN.ELE_CSS}">
+    <link rel="stylesheet" href="${getIndex(0)}">
     <style>
       body {
         margin: 0;
@@ -211,9 +255,9 @@ export function getHTML(data, videoInfo = {}, getTime) {
   </div>
   </body>
 
-  <script src="${CDN.ECHATS_JS}"></script>  
-  <script src="${CDN.VUE_JS}"></script>
-  <script src="${CDN.ELE_JS}"></script>
+  <script src="${getIndex(2)}"></script>  
+  <script src="${getIndex(1)}"></script>
+  <script src="${getIndex(3)}"></script>
   <script>
     const __tableData = ${data}
   </script>
@@ -564,7 +608,7 @@ export function writeToHTML(html, fileName = 'file.html') {
     new Blob([html])
   );
   const a = document.createElement("a");
-  
+
   a.href = url;
   a.download = fileName
   a.click();
