@@ -1,6 +1,68 @@
+import ExcelJS from 'exceljs'
+
 export function getInterval(min = 500) {
   return Math.max(min, Math.random() * 3000)
 }
+
+type excelParamsType = {
+  style?: Record<string, any> // excel表的样式配置
+  tableData: any[] // 表的数据内容
+  headerColumns: any[] //表头配置
+  sheetName: string // 工作表名
+}
+
+export async function exportToExcel(options: excelParamsType) {
+  const { sheetName, style, headerColumns, tableData } = options
+  console.log(2)
+
+  // import('exceljs').then(async (module) => {
+    // const ExcelJS = module
+    const workbook = new ExcelJS.Workbook();
+    workbook.title = sheetName;
+    workbook.creator = 'joey'
+    workbook.created = new Date()
+    const worksheet = workbook.addWorksheet('Sheet1');
+    if (headerColumns.length > 0) {
+      // 设置列头
+      const columnsData = headerColumns.map((column, index) => {
+        const width = column.width
+        return {
+          header: column.header,
+          key: column.key,
+          width: isNaN(width) ? undefined : width
+        }
+      })
+      worksheet.columns = columnsData
+    }
+
+    // 设置表头样式
+    if (style) {
+      const headerRow = worksheet.getRow(1)
+      headerRow.eachCell((cell) => {
+        cell.style = style
+      })
+    }
+
+    // 设置行数据
+    if (tableData.length > 0) {
+      tableData.forEach(row => {
+        worksheet.addRow(row)
+      })
+    }
+    console.log(worksheet)
+    const buffer = await workbook.xlsx.writeBuffer()
+    writeFile(sheetName, buffer);
+}
+
+export const writeFile = (fileName, content) => {
+  const link = document.createElement("a");
+  const blob = new Blob([content], {
+    type: "application/vnd.ms-excel;charset=utf-8;"
+  });
+  link.download = fileName;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+};
 
 export function extractReply(reply) {
   if (!reply) {
@@ -32,6 +94,48 @@ export function scrollToBottom() {
 export function scrollToTop() {
   window.scrollTo(0, 0)
 }
+
+export function replaceReplyPrefix(str: string) {
+  return str?.replace(/回复 [^:]+ :/i, '')
+}
+
+export function exportTableToExcel(data: any[], sheetName: string) {
+  const list = []
+  for (let i = 0; i < data.length; i++) {
+    const { children, ...rest } = data[i]
+    list.push({
+      ...rest,
+      isFirst: '是',
+      rpid: rest.rpid + '',
+      ctime: rest.ctime ? new Date(rest.ctime * 1000).toLocaleString() : '-' 
+    })
+    if (children && children.length) {
+      for (let j = 0; j < children.length; j++) {
+        list.push({
+          ...children[j],
+          rpid: children[j].rpid + '',
+          comment: replaceReplyPrefix(children[j].comment),
+          ctime: children[j].ctime ? new Date(children[j].ctime * 1000).toLocaleString() : '-' 
+        })
+      }
+    }
+  }
+  exportToExcel({
+    sheetName,
+    tableData: list,
+    headerColumns: [...XLSL_Columns]
+  })
+}
+
+export const XLSL_Columns = [
+  { header: '一级评论', key: 'isFirst' },
+  { header: '评论ID', key: 'rpid', width: 30 },
+  { header: '用户', key: 'memberName', width: 40 },
+  { header: '评论', key: 'comment', width: 50 },
+  { header: '点赞数', key: 'like' },
+  { header: '内评论数', key: 'rcount' },
+  { header: '评论时间', key: 'ctime', width: 15 },
+]
 
 const nameList = [
   {
@@ -267,6 +371,12 @@ export function getHTML(data, videoInfo = {}, getTime) {
   const tableData = __tableData.map(e => {
     return {
       ...e,
+      children: e?.children?.length ? e.children.map(child => {
+        return {
+          ...child,
+          comment: child?.comment?.replace(/回复 [^:]+ :/i, '')
+        }
+      }) : null,
       hasChildren: !!e?.children?.length
     }
   })
@@ -372,7 +482,7 @@ export function getHTML(data, videoInfo = {}, getTime) {
         rankData: [],
         keyword: '',
         currentPage: 1,
-        pageSize: 20,
+        pageSize: 100,
         loading: false,
         showAll: false,
         showAllUpData: false,
@@ -439,9 +549,13 @@ export function getHTML(data, videoInfo = {}, getTime) {
       setTableData(pageIndex, pageSize) {
         const start = (pageIndex - 1) * pageSize
         const end = start + pageSize
+        console.log(start, end)
         this.tableData = this.originTableData.slice(start, end)
       },
       onPageChange(currentPage, pageSize) {
+        this.currentPage = currentPage
+        this.pageSize = pageSize
+        console.log(currentPage, pageSize)
         this.setTableData(currentPage, pageSize)
       },
       onKeyword(keyword) {

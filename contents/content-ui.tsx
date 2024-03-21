@@ -1,7 +1,7 @@
 
 import React, { useState } from "react"
 import type { PlasmoCSConfig } from "plasmo";
-import { writeToHTML, scrollToTop, getHTML, getInterval, scrollToBottom, extractReply } from '../utils'
+import { writeToHTML, scrollToTop, getHTML, getInterval, scrollToBottom, extractReply, exportToExcel, exportTableToExcel } from '../utils'
 import styleText from "data-text:./style.module.css"
 import * as style from "./style.module.css"
 console.log(styleText)
@@ -27,6 +27,8 @@ export const extarct_config = {
   mainReplyCount: -1,
   // 主 + 副评论总数
   mainSubReplyCount: -1,
+  // 下载模式
+  mode: 'excel',
   upMid: null,
   setLoading: (value) => {}
 }
@@ -95,8 +97,13 @@ function downloadComments(title = 'file.html', maxCount = 100000, withChildren =
 
   const getTime = new Date().toLocaleString().replace(/\//g, '-')
   console.log('get time: ', getTime)
-  const html = getHTML(JSON.stringify(data), JSON.stringify(getVideoInfo()), JSON.stringify(getTime))
-  writeToHTML(html, title)
+  console.log('mode = ', extarct_config.mode)
+  if (extarct_config.mode === 'html') {
+    const html = getHTML(JSON.stringify(data), JSON.stringify(getVideoInfo()), JSON.stringify(getTime))
+    writeToHTML(html, title)
+  } else if (extarct_config.mode === 'excel') {
+    exportTableToExcel(data, title.replace('.html', ''))
+  }
 }
 
 function noMoreComment() {
@@ -137,6 +144,7 @@ function noMoreCommentPromise() {
  */
 
 function downloadTopComments(topNum = 100) {
+  console.log(1)
   const handler = () => {
     const size = commentInfoMap.size
     if (extarct_config.mainReplyCount !== -1 && size >= extarct_config.mainReplyCount || noMoreComment()) {
@@ -236,18 +244,36 @@ export function Button({ children, onClick = () => { } }) {
   return <div className={style.button} onClick={ onClick }>{ children }</div>
 }
 
-export function DownloadIndexComment() {
+function DownloadIndexCommentCustom(props = { count: 100 }) {
+  const { count } = props
   const onClick = () => {
-    downloadTopComments(100)
+    console.log('custom get: ', count)
+    if (count) {
+      downloadTopComments(count)
+    }
   }
-  return <Button onClick={ onClick }>热门前100</Button>
+  return <>
+    <Button onClick={ onClick }>自定义获取</Button>
+  </>
+}
+function DownloadIndexCommentNestedCustom(props = { count: 10 }) {
+  const { count } = props
+  const onClick = () => {
+    console.log('custom get: ', count)
+    if (count) {
+      downloadCommentsWithNested(count)
+    }
+  }
+  return <>
+    <Button onClick={ onClick }>自定义获取（含回复）</Button>
+  </>
 }
 
 export function DownloadTop() {
   const onClick = () => {
-    downloadTopComments(200)
+    downloadTopComments(300)
   }
-  return <Button onClick={onClick}>热门前200</Button>
+  return <Button onClick={onClick}>热门前300</Button>
 }
 
 export function DownloadTopWithNested() {
@@ -266,14 +292,47 @@ export function UpInfoButton() {
 }
 
 export default function Content() {
+  const [count, setCount] = useState(100)
   const [loading, setLoading] = useState(false)
+  const [mode, setMode] = useState('excel')
   extarct_config.setLoading = setLoading
 
+  const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const __count = parseInt(e.target.value)
+    setCount(__count || 0)
+    e.stopPropagation()
+    e.preventDefault()
+  }
+
+  const onModeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('new mode: ', e.target.value)
+    extarct_config.mode = e.target.value
+    setMode(e.target.value)
+  }
+
+
+
   return <div className={`${style.wrapper} ${loading ? style.loading : ''}`}>
-    <DownloadIndexComment />
     <DownloadTop />
     <DownloadTopWithNested />
-    {/* <UpInfoButton /> */}
+    <div>
+      <input defaultValue={count} onKeyDown={(e) => e.stopPropagation()} onChange={onInputChange} className={style['input']} placeholder="条数" />
+    </div>
+    <DownloadIndexCommentCustom count={count} />
+    <DownloadIndexCommentNestedCustom count={count} />
+    <fieldset>
+      <legend>导出格式</legend>
+      <div>
+        <label>
+          <input type="radio" id="radio_excel" name="format" checked={mode=== 'excel'} value="excel" onChange={onModeChange} />
+          Excel
+        </label>
+        <label>
+          <input type="radio" id="radio_html" name="format" checked={mode=== 'html'} value="html" onChange={onModeChange} />
+          HTML
+        </label>
+      </div>
+    </fieldset>
     { loading ? <div className={style.loadingText}>正在处理...请勿重复操作</div> : null }
   </div>
 }
