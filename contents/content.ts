@@ -4,7 +4,7 @@
 
 import type { PlasmoCSConfig } from "plasmo"
 import { extractReply } from "~utils";
-import { commentInfoMap, commentsListMap, extarct_config } from "./content-ui";
+import { commentInfoMap, commentsListMap, extarct_config, global_data } from "./content-ui";
 
 export const config: PlasmoCSConfig = {
   matches: ["https://www.bilibili.com/video/*"],
@@ -39,6 +39,9 @@ function handleRequestData(json) {
 
 function onMainComments(data, apiQuery) {
   const { top_replies, replies, upper } = data
+  if (apiQuery) {
+    global_data.mainQuery = apiQuery;
+  }
   if (top_replies) {
     top_replies.forEach(reply => {
       handleReply(reply)
@@ -61,7 +64,7 @@ function onMainComments(data, apiQuery) {
   }
 }
 
-function onNestedReply(data, apiQuery) {
+export function onNestedReply(data, apiQuery) {
   if (!apiQuery || !apiQuery.root) {
     return console.error('Not found the root rpid!!')
   }

@@ -4,7 +4,7 @@ import type { PlasmoCSConfig } from "plasmo";
 import { writeToHTML, scrollToTop, getHTML, getInterval, scrollToBottom, extractReply, exportToExcel, exportTableToExcel } from '../utils'
 import styleText from "data-text:./style.module.css"
 import * as style from "./style.module.css"
-console.log(styleText)
+import { onNestedReply } from "./content";
 
 export const getStyle = () => {
   const style = document.createElement("style")
@@ -19,6 +19,10 @@ export const config: PlasmoCSConfig = {
   ]
 }
 
+export const global_data = {
+  mainQuery: {},
+}
+
 export const extarct_config = {
   downloading: false,
   onMainChange: null,
@@ -30,7 +34,7 @@ export const extarct_config = {
   // 下载模式
   mode: 'excel',
   upMid: null,
-  setLoading: (value) => {}
+  setLoading: (value) => { }
 }
 export const commentInfoMap = new Map() // rpid -> reply
 export const commentsListMap = new Map() // rpid -> []reply's children
@@ -172,6 +176,84 @@ function downloadTopComments(topNum = 100) {
     })
 }
 
+function downloadNestedCommentByAPI(root = '') {
+  const result = [];
+  let totalCount = 0;
+  const getReplyList = (page = 1) => {
+    return new Promise((resolve, reject) => {
+      const { oid = '' } = global_data.mainQuery;
+      const url = `https://api.bilibili.com/x/v2/reply/reply?type=1&oid=${oid}&sort=2&ps=20&root=${root}&pn=${page}`
+      fetch(url)
+        .then(res => res.json())
+        .then(res => {
+          console.log('call onNestedReply');
+          onNestedReply(res.data, {
+            oid,
+            root,
+          })
+          console.log('res: ', res);
+          const { page, replies } = res.data;
+          const { count } = page || { count: 0 }
+          totalCount = totalCount || count;
+          resolve({
+            list: replies,
+            count,
+          })
+        }).catch(() => ({ list: []}));
+    })
+  }
+
+  const handler = (pageSize = 1, callback) => {
+    getReplyList(pageSize)
+      .then((res) => {
+        const { list } = res || {};
+        result.push(...list)
+        if (totalCount && result.length >= totalCount) {
+          const item = commentInfoMap.get(root);
+          if (item) {
+            item._child_loaded = true;
+            commentInfoMap.set(root, item);
+          }
+          callback(result);
+        } else {
+          setTimeout(() => {
+            handler(pageSize + 1, callback);
+          }, getInterval())
+        }
+      })
+  }
+  return new Promise((resolve, reject) => {
+    if (!root) {
+      resolve(true);
+      return;
+    }
+    const item = commentInfoMap.get(root);
+    if (item && item._child_loaded) {
+      resolve(true);
+      return;
+    }
+    return handler(1, () => {
+      resolve(true);
+    })
+  })
+}
+
+async function downloadCommentsWithNestedByPage(topNum = 10) {
+  const promiseList = []
+  let maxIndex = topNum;
+  let index = 0;
+  extarct_config.setLoading(true);
+  for (const [key, value] of commentInfoMap.entries()) {
+    if (index >= maxIndex) {
+      break;
+    }
+    index++;
+    promiseList.push(downloadNestedCommentByAPI(key));
+  }
+  await Promise.all(promiseList);
+  extarct_config.setLoading(false);
+  downloadComments(getDownloadFileName(), topNum, true)
+}
 function downloadCommentsWithNested(topNum = 10) {
   extarct_config.mainSubReplyCount = topNum
   let targetIndex = 0
@@ -213,7 +295,7 @@ function downloadCommentsWithNested(topNum = 10) {
         }, getInterval())
         return
       }
-      
+
       if (moreBtn) {
         moreBtn.click()
         return
@@ -241,7 +323,7 @@ function downloadCommentsWithNested(topNum = 10) {
 }
 
 export function Button({ children, onClick = () => { } }) {
-  return <div className={style.button} onClick={ onClick }>{ children }</div>
+  return <div className={ style.button } onClick={ onClick }>{ children }</div>
 }
 
 function DownloadIndexCommentCustom(props = { count: 100 }) {
@@ -256,12 +338,14 @@ function DownloadIndexCommentCustom(props = { count: 100 }) {
     <Button onClick={ onClick }>自定义获取</Button>
   </>
 }
+
 function DownloadIndexCommentNestedCustom(props = { count: 10 }) {
   const { count } = props
-  const onClick = () => {
+  const onClick = async () => {
     console.log('custom get: ', count)
+    const list = [];
     if (count) {
-      downloadCommentsWithNested(count)
+      downloadCommentsWithNestedByPage(count);
     }
   }
   return <>
@@ -273,14 +357,15 @@ export function DownloadTop() {
   const onClick = () => {
     downloadTopComments(300)
   }
-  return <Button onClick={onClick}>热门前300</Button>
+  return <Button onClick={ onClick }>热门前300</Button>
 }
 
 export function DownloadTopWithNested() {
   const onClick = () => {
-    downloadCommentsWithNested(10)
+    // downloadCommentsWithNested(10)
+    downloadCommentsWithNestedByPage(10);
   }
-  return <Button onClick={onClick}>热门前10（含回复）</Button>
+  return <Button onClick={ onClick }>热门前10（含回复）</Button>
 }
 
 export function UpInfoButton() {
@@ -288,7 +373,7 @@ export function UpInfoButton() {
     scrollToTop()
     console.log(getVideoInfo())
   }
-  return <Button onClick={onClick}>获取UP</Button>
+  return <Button onClick={ onClick }>获取UP</Button>
 }
 
 export default function Content() {
@@ -312,28 +397,28 @@ export default function Content() {
 
 
 
-  return <div className={`${style.wrapper} ${loading ? style.loading : ''}`}>
+  return <div className={ `${style.wrapper} ${loading ? style.loading : ''}` }>
     <DownloadTop />
     <DownloadTopWithNested />
     <div>
-      <input defaultValue={count} onKeyDown={(e) => e.stopPropagation()} onChange={onInputChange} className={style['input']} placeholder="条数" />
+      <input defaultValue={ count } onKeyDown={ (e) => e.stopPropagation() } onChange={ onInputChange } className={ style['input'] } placeholder="条数" />
     </div>
-    <DownloadIndexCommentCustom count={count} />
-    <DownloadIndexCommentNestedCustom count={count} />
+    <DownloadIndexCommentCustom count={ count } />
+    <DownloadIndexCommentNestedCustom count={ count } />
     <fieldset>
       <legend>导出格式</legend>
       <div>
         <label>
-          <input type="radio" id="radio_excel" name="format" checked={mode=== 'excel'} value="excel" onChange={onModeChange} />
+          <input type="radio" id="radio_excel" name="format" checked={ mode === 'excel' } value="excel" onChange={ onModeChange } />
           Excel
         </label>
         <label>
-          <input type="radio" id="radio_html" name="format" checked={mode=== 'html'} value="html" onChange={onModeChange} />
+          <input type="radio" id="radio_html" name="format" checked={ mode === 'html' } value="html" onChange={ onModeChange } />
           HTML
         </label>
       </div>
     </fieldset>
-    { loading ? <div className={style.loadingText}>正在处理...请勿重复操作</div> : null }
+    { loading ? <div className={ style.loadingText }>正在处理...请勿重复操作</div> : null }
   </div>
 }
 
