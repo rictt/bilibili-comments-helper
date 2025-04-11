@@ -21,6 +21,8 @@ export const config: PlasmoCSConfig = {
 
 export const global_data = {
   mainQuery: {},
+  errorReplyCount: 0,
+  errorReplyMaxCount: 5,
 }
 
 export const extarct_config = {
@@ -34,7 +36,8 @@ export const extarct_config = {
   // 下载模式
   mode: 'excel',
   upMid: null,
-  setLoading: (value) => { }
+  setLoading: (value) => { },
+  setTip: (value) => {}
 }
 export const commentInfoMap = new Map() // rpid -> reply
 export const commentsListMap = new Map() // rpid -> []reply's children
@@ -182,11 +185,19 @@ function downloadNestedCommentByAPI(root = '') {
   const getReplyList = (page = 1) => {
     return new Promise((resolve, reject) => {
       const { oid = '' } = global_data.mainQuery;
-      const url = `https://api.bilibili.com/x/v2/reply/reply?type=1&oid=${oid}&sort=2&ps=20&root=${root}&pn=${page}`
+      const url = `https://api.bilibili.com/x/v2/reply/reply?type=1&oid=${oid}&sort=2&ps=20&root=${root}&pn=${page}&web_location=333.788`
       fetch(url)
         .then(res => res.json())
         .then(res => {
-          console.log('call onNestedReply');
+          console.log('call onNestedReply', res);
+          if (res.code !== 0) {
+            global_data.errorReplyCount++;
+            if (global_data.errorReplyCount >= global_data.errorReplyMaxCount) {
+              extarct_config.setTip('服务器异常，请稍后重试');
+              return reject('服务器异常，请稍后重试');
+            }
+            resolve({ list: [], count: 0 })
+          }
           onNestedReply(res.data, {
             oid,
             root,
@@ -250,7 +261,11 @@ async function downloadCommentsWithNestedByPage(topNum = 10) {
     index++;
     promiseList.push(downloadNestedCommentByAPI(key));
   }
-  await Promise.all(promiseList);
+  try {
+    await Promise.all(promiseList);
+  } catch (e) {
+    console.log(e);
+  }
   extarct_config.setLoading(false);
   downloadComments(getDownloadFileName(), topNum, true)
 }
@@ -380,6 +395,8 @@ export default function Content() {
   const [count, setCount] = useState(100)
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState('excel')
+  const [tip, setTip] = useState('');
+  extarct_config.setTip = setTip
   extarct_config.setLoading = setLoading
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -419,6 +436,7 @@ export default function Content() {
       </div>
     </fieldset>
     { loading ? <div className={ style.loadingText }>正在处理...请勿重复操作</div> : null }
+    { tip ? <div className={ style.loadingText }>{tip}</div> : null }
   </div>
 }
 

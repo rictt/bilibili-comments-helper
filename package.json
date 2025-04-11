@@ -1,7 +1,7 @@
 {
   "name": "bilibil-comments-helper",
   "displayName": "B站评论助手",
-  "version": "0.0.2",
+  "version": "1.0.0",
   "description": "Bilibili评论助手，帮你下载评论，分析提取评论关键字，分析热点趋势～",
   "author": "joey",
   "scripts": {
